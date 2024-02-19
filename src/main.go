@@ -1,48 +1,54 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
+	"github.com/tuckersGo/goWeb/web9/cipher"
+	"github.com/tuckersGo/goWeb/web9/lzw"
 )
 
-type User struct {
-	// using anotation for json !!!
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	CreateAt  time.Time `json:"create_at"`
+type Component interface {
+	Operator(string)
 }
 
-type fooHandler struct{}
+var sentData string
 
-func (f *fooHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	user := new(User)
-	err := json.NewDecoder(req.Body).Decode(user)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, err)
-		return
-	}
-	user.CreateAt = time.Now()
-	data, err := json.Marshal(user)
-	if err != nil {
-		fmt.Fprint(w, err)
-		return
-	}
-	w.Header().Add("content-type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, string(data))
+type SendComponent struct{}
+
+func (self *SendComponent) Operator(data string) {
+	sentData = data
 }
 
+type ZipComponent struct {
+	com Component
+}
+
+func (self *ZipComponent) Operator(data string) {
+	zipData, err := lzw.Write([]byte(data))
+	if err != nil {
+		panic(err)
+	}
+	self.com.Operator(string(zipData))
+}
+
+type EncryptComponent struct {
+	com Component
+	key string
+}
+
+func (self *EncryptComponent) Operator(data string) {
+	encData, err := cipher.Encrypt([]byte(data), self.key)
+	if err != nil {
+		panic(err)
+	}
+	self.com.Operator(string(encData))
+}
 func main() {
-	mux := http.NewServeMux()
-	mux.Handle("/", &fooHandler{})
+	sender := &EncryptComponent{
+		key: "abcde",
+		com: &ZipComponent{
+			com: &SendComponent{}}}
 
-	mux.HandleFunc("/handleFunc", func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprint(w, "Hello, this is handleFunc!")
-	})
+	sender.Operator("Hello World")
 
-	http.ListenAndServe(":8080", mux)
+	fmt.Println(sentData)
 }
