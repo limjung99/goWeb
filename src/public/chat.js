@@ -25,5 +25,27 @@ $(function() {
         });
         $chatmsg.val("");
         $chatmsg.focus();
+        return false;
     })
+
+    var addMessage = (data) => {
+        var text = "";
+        if(!isBlank(data.name)) {
+            text = '<string>' + data.name + ':</string>';
+        }
+        text += data.msg;
+        $chatlog.prepend('<div><span>'+text+'</span></div>');
+
+    }
+
+    var es = new EventSource('/stream');
+    es.onopen = (e) => {
+        $.post('/users' , {
+            name : username
+        })
+    }
+    es.onmessage = (e) => {
+        var msg = JSON.parse(e.data)
+        addMessage(msg)
+    }
 })
