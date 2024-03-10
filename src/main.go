@@ -7,10 +7,13 @@ import (
 )
 
 func main() {
-	m := app.MakeHandler()
+	m := app.MakeHandler("./test.db")
+	defer m.Close()
 	n := negroni.Classic()
 	n.UseHandler(m)
 
-	http.ListenAndServe(":3000", n)
-
+	err := http.ListenAndServe(":3000", n)
+	if err != nil {
+		panic(err)
+	}
 }
